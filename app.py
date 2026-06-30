@@ -146,14 +146,14 @@ elif result is not None:
     st.subheader("추출 결과 (텍스트 항목)")
     df = pd.DataFrame(result["rows"], columns=TEXT_COLUMNS)
     df.index = range(1, len(df) + 1)
-    st.dataframe(df, use_container_width=True, height=420)
+    st.dataframe(df, width="stretch", height=420)
 
     st.subheader(f"이미지 미리보기 (처음 {len(result['gallery'])}건)")
     for title, photo, space in result["gallery"]:
         st.markdown(f"**{title}**")
         g1, g2 = st.columns([1, 2])
-        g1.image(photo, caption="사진", use_container_width=True)
-        g2.image(space, caption="공실현황", use_container_width=True)
+        g1.image(photo, caption="사진", width="stretch")
+        g2.image(space, caption="공실현황", width="stretch")
         st.divider()
 else:
     st.info("좌측에서 옵션을 설정한 뒤 PDF를 업로드하세요.")

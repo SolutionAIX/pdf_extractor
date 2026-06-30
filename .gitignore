@@ -1,6 +1,13 @@
-dsvtest2.xlsx
-dsvtest2_images/
 venv/
-local_file/
-dsv_main_images/
 __pycache__/
+*.pyc
+.DS_Store
+
+# local data & generated output (keep the repo lean for Streamlit Cloud)
+local_file/
+*_images/
+dsvtest2_images/
+dsv_main_images/
+*.pdf
+*.xlsx
+~$*
