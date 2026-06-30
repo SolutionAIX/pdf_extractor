@@ -46,6 +46,18 @@ Options: `-o/--output`, `--broker` (fills 중개인/임대인명), `--date dd/mm
 (default today), `--dpi` (OCR render DPI, default 300), `--img-dpi` (cropped
 image DPI, default 150), `--img-width` (embedded image width px, default 360).
 
+### Web UI (drag & drop)
+
+A Streamlit app wraps the same extractor: drag-drop a PDF, preview the result
+table and cropped images, then download the `.xlsx`.
+
+```bash
+./venv/bin/streamlit run app.py
+```
+
+Then open the shown URL (default http://localhost:8501). Set 중개인/임대인명,
+정보 확인일자 and image sizes in the sidebar before/while uploading.
+
 | Column | Source / default |
 | --- | --- |
 | 창고명 | title headline (OCR) |

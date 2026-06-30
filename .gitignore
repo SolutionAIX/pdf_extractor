@@ -3,3 +3,4 @@ dsvtest2_images/
 venv/
 local_file/
 dsv_main_images/
+__pycache__/

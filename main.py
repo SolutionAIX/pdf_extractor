@@ -228,8 +228,6 @@ def content_bbox(img: Image.Image, box_px, white: int = 235, pad: int = 6):
 def extract_page(img: Image.Image, page_idx: int, img_dir: str) -> dict:
     w, h = img.size
     gray = np.array(img.convert("L"))
-
-    # --- General Information: detect rows, OCR each value cell -------------
     gi_box = _px(GI_BOX, w, h)
     rows = detect_grid_rows(gray, gi_box)
     values: dict[str, str] = {}
@@ -459,6 +457,47 @@ def write_excel(records: list[dict], out_path: str, broker: str,
 
 
 # ---------------------------------------------------------------------------
+# Shared extraction driver (used by the CLI and the Streamlit app)
+# ---------------------------------------------------------------------------
+def ocr_available() -> bool:
+    try:
+        pytesseract.get_tesseract_version()
+        return True
+    except Exception:
+        return False
+
+
+def extract_records(doc: "fitz.Document", img_dir: str, dpi: int = 300,
+                    img_dpi: int = 150, ocr_ready: bool | None = None,
+                    progress=None) -> tuple[list[dict], int]:
+    """Walk every page, returning (property records, skipped page count).
+
+    `progress`, if given, is called as progress(page_index, total, record_or_None).
+    """
+    if ocr_ready is None:
+        ocr_ready = ocr_available()
+    os.makedirs(img_dir, exist_ok=True)
+
+    records: list[dict] = []
+    skipped = 0
+    total = len(doc)
+    for i, page in enumerate(doc):
+        text = page.get_text()
+        rec = None
+        if is_property_page(text):
+            rec = extract_text_page(page, i, img_dir, img_dpi)
+        elif len(text.strip()) < 50 and ocr_ready:
+            rec = extract_page(render_page(page, dpi), i, img_dir)
+        else:
+            skipped += 1
+        if rec is not None:
+            records.append(rec)
+        if progress is not None:
+            progress(i, total, rec)
+    return records, skipped
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main(argv: list[str] | None = None) -> int:
@@ -490,34 +529,13 @@ def main(argv: list[str] | None = None) -> int:
 
     doc = fitz.open(args.pdf)
 
-    ocr_ready = True
-    try:
-        pytesseract.get_tesseract_version()
-    except Exception:
-        ocr_ready = False
+    def _log(i, total, rec):
+        if rec is not None:
+            print(f"[page {i + 1}/{total}] {rec['창고명'] or '(no title)'} | "
+                  f"{rec['행정구역_도']} {rec['행정구역_시']} | 준공 {rec['준공연도']}")
 
-    records = []
-    skipped = 0
-    for i, page in enumerate(doc):
-        text = page.get_text()
-        if is_property_page(text):
-            # PDF carries a usable text layer -> parse it directly (no OCR).
-            rec = extract_text_page(page, i, img_dir, args.img_dpi)
-        elif len(text.strip()) < 50:
-            # Image-only page (e.g. a scanned brochure) -> fall back to OCR.
-            if not ocr_ready:
-                print("error: this PDF needs OCR but Tesseract is not installed.\n"
-                      "       Install it (e.g. `brew install tesseract tesseract-lang`).",
-                      file=sys.stderr)
-                return 2
-            rec = extract_page(render_page(page, args.dpi), i, img_dir)
-        else:
-            # A text page that is not a property sheet (cover / TOC / divider).
-            skipped += 1
-            continue
-        records.append(rec)
-        print(f"[page {i + 1}/{len(doc)}] {rec['창고명'] or '(no title)'} | "
-              f"{rec['행정구역_도']} {rec['행정구역_시']} | 준공 {rec['준공연도']}")
+    records, skipped = extract_records(doc, img_dir, dpi=args.dpi,
+                                       img_dpi=args.img_dpi, progress=_log)
 
     if not records:
         print("error: no property pages found in this PDF.", file=sys.stderr)
