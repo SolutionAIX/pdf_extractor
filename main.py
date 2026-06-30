@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import sys
 from datetime import date
 
@@ -516,6 +517,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="정보확인일자 value (default: today as dd/mm/yyyy)")
     parser.add_argument("--img-width", type=int, default=360,
                         help="embedded image width in px (default: 360)")
+    parser.add_argument("--keep-images", action="store_true",
+                        help="keep the cropped image folder (by default it is "
+                        "deleted once the images are embedded in the workbook)")
     args = parser.parse_args(argv)
 
     if not os.path.isfile(args.pdf):
@@ -538,13 +542,21 @@ def main(argv: list[str] | None = None) -> int:
                                        img_dpi=args.img_dpi, progress=_log)
 
     if not records:
+        shutil.rmtree(img_dir, ignore_errors=True)
         print("error: no property pages found in this PDF.", file=sys.stderr)
         return 3
 
     write_excel(records, out_path, args.broker, info_date, args.img_width)
     print(f"\nDone -> {out_path}  ({len(records)} rows, {skipped} non-pattern "
           f"pages skipped)")
-    print(f"Cropped images -> {img_dir}/")
+
+    # The images are now embedded in the workbook, so the loose crops and any
+    # temporary render are no longer needed.
+    if args.keep_images:
+        print(f"Cropped images -> {img_dir}/")
+    else:
+        shutil.rmtree(img_dir, ignore_errors=True)
+        print("Cropped images cleaned up (embedded in the workbook).")
     return 0
 
 

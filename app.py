@@ -48,7 +48,12 @@ def build_row(rec: dict, broker: str, info_date: str) -> dict:
 
 def run_extraction(pdf_bytes: bytes, broker: str, info_date: str,
                    img_width: int, dpi: int, img_dpi: int) -> dict | None:
-    """Parse the PDF and return everything the UI needs (all in-memory)."""
+    """Parse the PDF and return everything the UI needs (all in-memory).
+
+    The PDF is read from memory and never written to disk; the cropped images
+    and the intermediate workbook live in a TemporaryDirectory that is deleted
+    automatically once their bytes have been read out below.
+    """
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     total = len(doc)
     bar = st.progress(0.0, text=f"0 / {total} 페이지 처리 중…")
@@ -57,7 +62,7 @@ def run_extraction(pdf_bytes: bytes, broker: str, info_date: str,
         label = rec["창고명"] if rec else "건너뜀"
         bar.progress((i + 1) / n, text=f"{i + 1} / {n} 페이지 — {label}")
 
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory() as tmp:  # auto-removed on block exit
         img_dir = os.path.join(tmp, "imgs")
         records, skipped = extract_records(doc, img_dir, dpi=dpi,
                                            img_dpi=img_dpi, progress=on_progress)
